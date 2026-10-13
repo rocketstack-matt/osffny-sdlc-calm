@@ -37,6 +37,13 @@ export function createApp(store: PositionStore): Server {
         const account = decodeURIComponent(match[1]!);
         return send(res, 200, { account, positions: store.read()[account] ?? {} });
       }
+      const total = url.pathname.match(/^\/positions\/([^/]+)\/total$/);
+      if (req.method === 'GET' && total) {
+        const account = decodeURIComponent(total[1]!);
+        const holdings = Object.values(store.read()[account] ?? {});
+        res.setHeader('x-total-source', 'client-ledger');
+        return send(res, 200, { account, total: holdings.reduce((sum, q) => sum + q, 0) });
+      }
       if (url.pathname === '/health') return send(res, 200, { status: 'ok' });
       return send(res, 404, { error: 'not found' });
     } catch (err) {
