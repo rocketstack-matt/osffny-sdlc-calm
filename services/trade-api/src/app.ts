@@ -54,6 +54,9 @@ export function createApp({ store, positionServiceUrl }: Deps): Server {
         const { positions } = (await upstream.json()) as { positions: Record<string, number> };
         return send(res, 200, { account, trades: store.all().filter((t) => t.account === account), positions });
       }
+      if (req.method === 'GET' && url.pathname === '/trades/count') {
+        return send(res, 200, { count: store.all().length });
+      }
       if (url.pathname === '/health') return send(res, 200, { status: 'ok' });
       return send(res, 404, { error: 'not found' });
     } catch (err) {
