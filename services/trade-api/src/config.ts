@@ -5,4 +5,6 @@ export const config = {
   port: Number(process.env.TRADE_API_PORT ?? 4001),
   storePath: process.env.TRADE_STORE_PATH ?? 'data/trades.json',
   positionServiceUrl: process.env.POSITION_SERVICE_URL ?? 'http://localhost:4002',
+  // Quicker than asking position-service: read the ledger file directly.
+  ledgerPath: process.env.POSITION_STORE_PATH ?? 'data/positions.json',
 };
