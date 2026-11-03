@@ -1,0 +1,870 @@
+{
+  "$schema": "https://calm.finos.org/release/1.2/meta/calm.json",
+  "$id": "https://rocketstack-matt.github.io/agentic-sdlc-blueprint/trade-capture.architecture.json",
+  "unique-id": "trade-capture-architecture",
+  "name": "Trade Capture",
+  "description": "A deliberately small trade capture system used to demonstrate a governed agentic SDLC.",
+  "nodes": [
+    {
+      "unique-id": "trader",
+      "node-type": "actor",
+      "name": "Trader",
+      "description": "Submits trades and views blotters."
+    },
+    {
+      "unique-id": "trade-capture",
+      "node-type": "system",
+      "name": "Trade Capture System",
+      "description": "Captures trades and maintains positions."
+    },
+    {
+      "unique-id": "trade-api",
+      "node-type": "service",
+      "name": "Trade API",
+      "description": "Accepts and lists trades. Must obtain positions from position-service, never from the Client Ledger.",
+      "interfaces": [
+        {
+          "unique-id": "trade-api-http",
+          "protocol": "HTTP",
+          "env-binding": "TRADE_API_PORT"
+        }
+      ],
+      "metadata": {
+        "source-path": "services/trade-api",
+        "system-manager": "trade-capture-leads"
+      }
+    },
+    {
+      "unique-id": "position-service",
+      "node-type": "service",
+      "name": "Position Service",
+      "description": "Sole owner of position calculation and of the Client Ledger.",
+      "interfaces": [
+        {
+          "unique-id": "position-service-http",
+          "protocol": "HTTP",
+          "env-binding": "POSITION_SERVICE_URL"
+        },
+        {
+          "unique-id": "position-service-port",
+          "protocol": "HTTP",
+          "env-binding": "POSITION_SERVICE_PORT"
+        }
+      ],
+      "metadata": {
+        "source-path": "services/position-service",
+        "system-manager": "risk-tech-leads"
+      }
+    },
+    {
+      "unique-id": "trade-store",
+      "node-type": "database",
+      "name": "Trade Store",
+      "description": "Record of captured trades.",
+      "interfaces": [
+        {
+          "unique-id": "trade-store-file",
+          "env-binding": "TRADE_STORE_PATH"
+        }
+      ]
+    },
+    {
+      "unique-id": "client-ledger",
+      "node-type": "database",
+      "name": "Client Ledger",
+      "description": "Records client positions: the book of record.",
+      "interfaces": [
+        {
+          "unique-id": "client-ledger-file",
+          "env-binding": "POSITION_STORE_PATH"
+        }
+      ],
+      "controls": {
+        "client-ledger-human-approval": {
+          "description": "The Client Ledger records client positions. Any change to a service that connects to it needs a human approver.",
+          "requirements": [
+            {
+              "requirement-url": "https://hub.calm.finos.org/calm/domains/finos-sdlc-common-controls/controls/sdlc-prev-001-code-review/requirement/versions/1.0.0",
+              "config": {
+                "control-id": "SDLC-PREV-001",
+                "name": "Code Review",
+                "description": "A change to any service with a connection into the Client Ledger is approved by a human, on top of its code review.",
+                "ergo": {
+                  "subjects": {
+                    "connection": {
+                      "description": "A connection in the architecture",
+                      "from": [
+                        "architecture",
+                        "relationships"
+                      ],
+                      "id": [
+                        "unique-id"
+                      ],
+                      "applies_to": {
+                        "is_connection": {
+                          "op": "present",
+                          "path": [
+                            "relationship-type",
+                            "connects"
+                          ]
+                        }
+                      }
+                    },
+                    "connection to the client ledger, changed": {
+                      "description": "A connection into the Client Ledger from a node this change touches",
+                      "of": "connection",
+                      "applies_to": {
+                        "into_the_ledger": {
+                          "op": "equals",
+                          "path": [
+                            "relationship-type",
+                            "connects",
+                            "destination",
+                            "node"
+                          ],
+                          "value": "client-ledger"
+                        },
+                        "from_a_changed_node": {
+                          "op": "in",
+                          "path": [
+                            "relationship-type",
+                            "connects",
+                            "source",
+                            "node"
+                          ],
+                          "values": {
+                            "ref": [
+                              "$$input",
+                              "change",
+                              "nodes"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "requirements": {
+                    "client-ledger-human-approval": {
+                      "description": "Any change to a service that connects to the Client Ledger is approved by a human",
+                      "meta": {
+                        "control-id": "SDLC-PREV-001",
+                        "calm-control": "client-ledger-human-approval",
+                        "stage": "merge"
+                      },
+                      "subject": "connection to the client ledger, changed",
+                      "min_subjects": 0,
+                      "checks": {
+                        "human_approved": {
+                          "description": "A human approved this change",
+                          "op": "non_empty_string",
+                          "path": [
+                            "$$input",
+                            "change",
+                            "approval",
+                            "approver"
+                          ]
+                        },
+                        "approver_is_a_person": {
+                          "description": "The approver is one of the people who may approve",
+                          "op": "in",
+                          "path": [
+                            "$$input",
+                            "change",
+                            "approval",
+                            "approver"
+                          ],
+                          "values": [
+                            "alice"
+                          ]
+                        },
+                        "approver_is_not_the_author": {
+                          "description": "The approver did not write the change",
+                          "op": "compare",
+                          "left": [
+                            "$$input",
+                            "change",
+                            "approval",
+                            "approver"
+                          ],
+                          "right": [
+                            "$$input",
+                            "change",
+                            "author"
+                          ],
+                          "cmp": "ne"
+                        },
+                        "approver_is_not_the_reviewer": {
+                          "description": "The approver is not the reviewer",
+                          "op": "compare",
+                          "left": [
+                            "$$input",
+                            "change",
+                            "approval",
+                            "approver"
+                          ],
+                          "right": [
+                            "$$input",
+                            "change",
+                            "review",
+                            "reviewer"
+                          ],
+                          "cmp": "ne"
+                        },
+                        "approval_verified": {
+                          "description": "The approval's signature checked out",
+                          "op": "equals",
+                          "path": [
+                            "$$input",
+                            "change",
+                            "approval",
+                            "verified"
+                          ],
+                          "value": true
+                        },
+                        "approval_unused": {
+                          "description": "The approval has not been used before",
+                          "op": "equals",
+                          "path": [
+                            "$$input",
+                            "change",
+                            "approval",
+                            "used"
+                          ],
+                          "value": false
+                        },
+                        "approval_for_this_commit": {
+                          "description": "The approval is for this commit",
+                          "op": "compare",
+                          "left": [
+                            "$$input",
+                            "change",
+                            "approval",
+                            "commit"
+                          ],
+                          "right": [
+                            "$$input",
+                            "change",
+                            "commit"
+                          ],
+                          "cmp": "eq"
+                        },
+                        "approval_for_this_diff": {
+                          "description": "The approval is for this exact diff",
+                          "op": "compare",
+                          "left": [
+                            "$$input",
+                            "change",
+                            "approval",
+                            "diff_sha256"
+                          ],
+                          "right": [
+                            "$$input",
+                            "change",
+                            "diff_sha256"
+                          ],
+                          "cmp": "eq"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "unique-id": "trader-uses-trade-api",
+      "description": "Trader submits and lists trades",
+      "relationship-type": {
+        "interacts": {
+          "actor": "trader",
+          "nodes": [
+            "trade-api"
+          ]
+        }
+      }
+    },
+    {
+      "unique-id": "trade-api-to-position-service",
+      "description": "Apply captured trades, read positions",
+      "protocol": "HTTP",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "trade-api"
+          },
+          "destination": {
+            "node": "position-service",
+            "interfaces": [
+              "position-service-http"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "unique-id": "trade-api-to-trade-store",
+      "description": "Persist captured trades",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "trade-api"
+          },
+          "destination": {
+            "node": "trade-store",
+            "interfaces": [
+              "trade-store-file"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "unique-id": "position-service-to-client-ledger",
+      "description": "Persist positions",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "position-service"
+          },
+          "destination": {
+            "node": "client-ledger",
+            "interfaces": [
+              "client-ledger-file"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "unique-id": "trade-capture-composition",
+      "relationship-type": {
+        "composed-of": {
+          "container": "trade-capture",
+          "nodes": [
+            "trade-api",
+            "position-service",
+            "trade-store",
+            "client-ledger"
+          ]
+        }
+      }
+    }
+  ],
+  "controls": {
+    "sdlc-prev-001-code-review": {
+      "description": "Every change is reviewed by an approved reviewer who is not its author. A change to anything no node owns, other than documentation and tests, such as the model, the gates or the pipeline, also needs a human approver.",
+      "requirements": [
+        {
+          "requirement-url": "https://hub.calm.finos.org/calm/domains/finos-sdlc-common-controls/controls/sdlc-prev-001-code-review/requirement/versions/1.0.0",
+          "config": {
+            "control-id": "SDLC-PREV-001",
+            "name": "Code Review",
+            "description": "Evaluated by the merge gateway, which knows the review and any approval.",
+            "ergo": {
+              "subjects": {
+                "change under review": {
+                  "description": "The change proposed for merge",
+                  "from": [
+                    "change"
+                  ],
+                  "id": [
+                    "commit"
+                  ]
+                },
+                "changed file no node owns": {
+                  "description": "A changed file outside every node that is not documentation or a test",
+                  "from": [
+                    "change",
+                    "files"
+                  ],
+                  "id": [
+                    "path"
+                  ],
+                  "applies_to": {
+                    "unowned": {
+                      "op": "missing",
+                      "path": [
+                        "node"
+                      ]
+                    },
+                    "not_docs_or_tests": {
+                      "op": "not_matches_any",
+                      "path": [
+                        "path"
+                      ],
+                      "patterns": [
+                        "^README\\.md$",
+                        "^docs/",
+                        "^slides/",
+                        "^LICENSE$",
+                        "^NOTICE$",
+                        "^test/"
+                      ]
+                    }
+                  }
+                }
+              },
+              "requirements": {
+                "code-review": {
+                  "description": "Every change is reviewed by an approved reviewer who is not its author",
+                  "meta": {
+                    "control-id": "SDLC-PREV-001",
+                    "calm-control": "sdlc-prev-001-code-review",
+                    "stage": "merge"
+                  },
+                  "subject": "change under review",
+                  "checks": {
+                    "review_approves": {
+                      "description": "The review approves the change",
+                      "op": "equals",
+                      "path": [
+                        "review",
+                        "verdict"
+                      ],
+                      "value": "approve"
+                    },
+                    "review_verified": {
+                      "description": "The review record's signature checked out",
+                      "op": "equals",
+                      "path": [
+                        "review",
+                        "verified"
+                      ],
+                      "value": true
+                    },
+                    "not_the_author": {
+                      "description": "The author may not review its own change",
+                      "op": "compare",
+                      "left": [
+                        "review",
+                        "reviewer"
+                      ],
+                      "right": [
+                        "author"
+                      ],
+                      "cmp": "ne"
+                    },
+                    "approved_reviewer": {
+                      "description": "The reviewer is an approved reviewer",
+                      "op": "in",
+                      "path": [
+                        "review",
+                        "reviewer"
+                      ],
+                      "values": [
+                        "review-bot"
+                      ]
+                    },
+                    "review_of_this_commit": {
+                      "description": "The review is of this commit",
+                      "op": "compare",
+                      "left": [
+                        "review",
+                        "commit"
+                      ],
+                      "right": [
+                        "commit"
+                      ],
+                      "cmp": "eq"
+                    },
+                    "review_of_this_diff": {
+                      "description": "The review is of this exact diff",
+                      "op": "compare",
+                      "left": [
+                        "review",
+                        "diff_sha256"
+                      ],
+                      "right": [
+                        "diff_sha256"
+                      ],
+                      "cmp": "eq"
+                    }
+                  }
+                },
+                "control-plane-human-approval": {
+                  "description": "A change to anything no node owns other than documentation and tests, such as the architecture, the gates or the pipeline, is approved by a human",
+                  "meta": {
+                    "control-id": "SDLC-PREV-001",
+                    "calm-control": "sdlc-prev-001-code-review",
+                    "stage": "merge"
+                  },
+                  "subject": "changed file no node owns",
+                  "min_subjects": 0,
+                  "checks": {
+                    "human_approved": {
+                      "description": "A human approved this change",
+                      "op": "non_empty_string",
+                      "path": [
+                        "$$input",
+                        "change",
+                        "approval",
+                        "approver"
+                      ]
+                    },
+                    "approver_is_a_person": {
+                      "description": "The approver is one of the people who may approve",
+                      "op": "in",
+                      "path": [
+                        "$$input",
+                        "change",
+                        "approval",
+                        "approver"
+                      ],
+                      "values": [
+                        "alice"
+                      ]
+                    },
+                    "approver_is_not_the_author": {
+                      "description": "The approver did not write the change",
+                      "op": "compare",
+                      "left": [
+                        "$$input",
+                        "change",
+                        "approval",
+                        "approver"
+                      ],
+                      "right": [
+                        "$$input",
+                        "change",
+                        "author"
+                      ],
+                      "cmp": "ne"
+                    },
+                    "approver_is_not_the_reviewer": {
+                      "description": "The approver is not the reviewer",
+                      "op": "compare",
+                      "left": [
+                        "$$input",
+                        "change",
+                        "approval",
+                        "approver"
+                      ],
+                      "right": [
+                        "$$input",
+                        "change",
+                        "review",
+                        "reviewer"
+                      ],
+                      "cmp": "ne"
+                    },
+                    "approval_verified": {
+                      "description": "The approval's signature checked out",
+                      "op": "equals",
+                      "path": [
+                        "$$input",
+                        "change",
+                        "approval",
+                        "verified"
+                      ],
+                      "value": true
+                    },
+                    "approval_unused": {
+                      "description": "The approval has not been used before",
+                      "op": "equals",
+                      "path": [
+                        "$$input",
+                        "change",
+                        "approval",
+                        "used"
+                      ],
+                      "value": false
+                    },
+                    "approval_for_this_commit": {
+                      "description": "The approval is for this commit",
+                      "op": "compare",
+                      "left": [
+                        "$$input",
+                        "change",
+                        "approval",
+                        "commit"
+                      ],
+                      "right": [
+                        "$$input",
+                        "change",
+                        "commit"
+                      ],
+                      "cmp": "eq"
+                    },
+                    "approval_for_this_diff": {
+                      "description": "The approval is for this exact diff",
+                      "op": "compare",
+                      "left": [
+                        "$$input",
+                        "change",
+                        "approval",
+                        "diff_sha256"
+                      ],
+                      "right": [
+                        "$$input",
+                        "change",
+                        "diff_sha256"
+                      ],
+                      "cmp": "eq"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "sdlc-prev-004-requirements-repository": {
+      "description": "Every change other than documentation names an approved spec, and touches only the nodes it declares.",
+      "requirements": [
+        {
+          "requirement-url": "https://hub.calm.finos.org/calm/domains/finos-sdlc-common-controls/controls/sdlc-prev-004-requirements/requirement/versions/1.0.0",
+          "config": {
+            "control-id": "SDLC-PREV-004",
+            "name": "Requirements Repository",
+            "description": "Requirements are version-controlled specs in specs/.",
+            "ergo": {
+              "subjects": {
+                "change outside the docs": {
+                  "description": "The change, when it touches anything other than documentation",
+                  "from": [
+                    "change"
+                  ],
+                  "id": [
+                    "commit"
+                  ],
+                  "applies_to": {
+                    "touches_more_than_docs": {
+                      "op": "any",
+                      "path": [
+                        "files"
+                      ],
+                      "check": {
+                        "op": "not_matches_any",
+                        "path": [
+                          "path"
+                        ],
+                        "patterns": [
+                          "^README\\.md$",
+                          "^docs/",
+                          "^slides/",
+                          "^LICENSE$",
+                          "^NOTICE$"
+                        ]
+                      }
+                    }
+                  }
+                },
+                "node the change touches": {
+                  "description": "A node in the architecture that owns a changed file",
+                  "from": [
+                    "change",
+                    "nodes"
+                  ]
+                }
+              },
+              "requirements": {
+                "change-names-approved-spec": {
+                  "description": "A change other than documentation names an approved spec",
+                  "meta": {
+                    "control-id": "SDLC-PREV-004",
+                    "calm-control": "sdlc-prev-004-requirements-repository",
+                    "stage": "change"
+                  },
+                  "subject": "change outside the docs",
+                  "min_subjects": 0,
+                  "checks": {
+                    "names_a_spec": {
+                      "description": "The change names a spec",
+                      "op": "non_empty_string",
+                      "path": [
+                        "spec"
+                      ]
+                    },
+                    "spec_exists": {
+                      "description": "The spec it names is in specs/",
+                      "op": "compare",
+                      "left": [
+                        "spec"
+                      ],
+                      "right": [
+                        "$$input",
+                        "spec",
+                        "id"
+                      ],
+                      "cmp": "eq"
+                    },
+                    "spec_approved": {
+                      "description": "The change's spec is approved",
+                      "op": "equals",
+                      "path": [
+                        "$$input",
+                        "spec",
+                        "approved"
+                      ],
+                      "value": true
+                    }
+                  }
+                },
+                "requirements-scope": {
+                  "description": "A change touches only the nodes its spec declares",
+                  "meta": {
+                    "control-id": "SDLC-PREV-004",
+                    "calm-control": "sdlc-prev-004-requirements-repository",
+                    "stage": "change"
+                  },
+                  "subject": "node the change touches",
+                  "min_subjects": 0,
+                  "checks": {
+                    "in_spec": {
+                      "description": "The spec declares this node",
+                      "op": "in",
+                      "path": [],
+                      "values": {
+                        "ref": [
+                          "$$input",
+                          "spec",
+                          "nodes"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "sdlc-prev-012-deployment-gating": {
+      "description": "A change is only admissible when every blocking gate passes. Without this the other controls are advisory.",
+      "requirements": [
+        {
+          "requirement-url": "https://hub.calm.finos.org/calm/domains/finos-sdlc-common-controls/controls/sdlc-prev-012-deployment-gating/requirement/versions/1.0.0",
+          "config": {
+            "control-id": "SDLC-PREV-012",
+            "name": "Deployment Gating",
+            "description": "gates/check.mjs runs every gate below; any failure blocks.",
+            "evaluated-by": "pipeline",
+            "blocking-gates": [
+              "calm-validate",
+              "tests",
+              "controls"
+            ]
+          }
+        }
+      ]
+    },
+    "sdlc-prev-014-test-evidence-retention": {
+      "description": "Every evaluation of the controls is kept as evidence, bound to the commit and the architecture it was decided on.",
+      "requirements": [
+        {
+          "requirement-url": "https://hub.calm.finos.org/calm/domains/finos-sdlc-common-controls/controls/sdlc-prev-014-test-evidence/requirement/versions/1.0.0",
+          "config": {
+            "control-id": "SDLC-PREV-014",
+            "name": "Test Evidence Retention",
+            "description": "gates/check.mjs writes the full control report to evidence/out; the merge gateway records each decision as a control-evaluation decorator.",
+            "evaluated-by": "pipeline",
+            "bound-to": [
+              "commit-sha",
+              "spec-id",
+              "architecture-sha256"
+            ],
+            "format": "application/json"
+          }
+        }
+      ]
+    },
+    "sdlc-prev-017-service-dependency": {
+      "description": "Service dependencies are mapped in this model and kept current with every change: every connection the code makes must be a connection in the architecture.",
+      "requirements": [
+        {
+          "requirement-url": "https://hub.calm.finos.org/calm/domains/finos-sdlc-common-controls/controls/sdlc-prev-017-service-dependency-control/requirement/versions/1.0.0",
+          "config": {
+            "control-id": "SDLC-PREV-017",
+            "name": "Service Dependency Control",
+            "description": "Connections found in code (environment bindings and imports across nodes) are compared with the connects relationships here.",
+            "ergo": {
+              "subjects": {
+                "connection the code makes": {
+                  "description": "A connection from one node to another, found in the code",
+                  "from": [
+                    "change",
+                    "connections",
+                    {
+                      "each_as": "made"
+                    }
+                  ],
+                  "id": [
+                    "id"
+                  ]
+                }
+              },
+              "requirements": {
+                "service-dependency": {
+                  "description": "Every connection the code makes exists in the architecture",
+                  "meta": {
+                    "control-id": "SDLC-PREV-017",
+                    "calm-control": "sdlc-prev-017-service-dependency",
+                    "stage": "change"
+                  },
+                  "subject": "connection the code makes",
+                  "min_subjects": 0,
+                  "checks": {
+                    "in_architecture": {
+                      "description": "The architecture has this connection",
+                      "op": "any",
+                      "path": [
+                        "$$input",
+                        "architecture",
+                        "relationships"
+                      ],
+                      "check": {
+                        "op": "any_of",
+                        "options": {
+                          "same_connection": [
+                            {
+                              "op": "compare",
+                              "left": [
+                                "relationship-type",
+                                "connects",
+                                "source",
+                                "node"
+                              ],
+                              "right": [
+                                "$made",
+                                "source"
+                              ],
+                              "cmp": "eq"
+                            },
+                            {
+                              "op": "compare",
+                              "left": [
+                                "relationship-type",
+                                "connects",
+                                "destination",
+                                "node"
+                              ],
+                              "right": [
+                                "$made",
+                                "destination"
+                              ],
+                              "cmp": "eq"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "catalog": "https://finos.github.io/sdlc-common-controls/"
+  }
+}

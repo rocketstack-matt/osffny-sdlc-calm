@@ -1,0 +1,224 @@
+{
+  "$schema": "https://calm.finos.org/release/1.2/meta/calm.json",
+  "$id": "https://hub.calm.finos.org/calm/namespaces/finos.agentic-sdlc/patterns/governed-service/versions/1.0.0",
+  "title": "Governed service pattern",
+  "description": "How this estate enforces the SDLC Common Controls on every architecture. The pattern requires five system-level controls and pins each to its control requirement document in the finos-sdlc-common-controls domain on CALM Hub. Three carry their policy as ergo requirements, evaluated by gates/check.mjs and the merge gateway; two are enforced by the pipeline. Any control on a node carries an ergo policy. Every node satisfies the governed-node Standard.",
+  "type": "object",
+  "properties": {
+    "nodes": {
+      "type": "array",
+      "items": {
+        "allOf": [
+          {
+            "$ref": "https://hub.calm.finos.org/calm/namespaces/finos.agentic-sdlc/standards/governed-node/versions/1.0.0"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "controls": {
+                "type": "object",
+                "patternProperties": {
+                  "^.*$": {
+                    "$ref": "https://hub.calm.finos.org/calm/namespaces/finos.agentic-sdlc/standards/ergo-control/versions/1.0.0"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "description": "Every relationship is CALM 1.2; the service dependency control compares the connections the code makes with the connects relationships here."
+    },
+    "controls": {
+      "type": "object",
+      "properties": {
+        "sdlc-prev-001-code-review": {
+          "$ref": "#/$defs/code-review"
+        },
+        "sdlc-prev-004-requirements-repository": {
+          "$ref": "#/$defs/requirements-repository"
+        },
+        "sdlc-prev-012-deployment-gating": {
+          "$ref": "#/$defs/deployment-gating"
+        },
+        "sdlc-prev-014-test-evidence-retention": {
+          "$ref": "#/$defs/test-evidence-retention"
+        },
+        "sdlc-prev-017-service-dependency": {
+          "$ref": "#/$defs/service-dependency-control"
+        }
+      },
+      "required": [
+        "sdlc-prev-001-code-review",
+        "sdlc-prev-004-requirements-repository",
+        "sdlc-prev-012-deployment-gating",
+        "sdlc-prev-014-test-evidence-retention",
+        "sdlc-prev-017-service-dependency"
+      ]
+    }
+  },
+  "required": [
+    "nodes",
+    "relationships",
+    "controls"
+  ],
+  "$defs": {
+    "code-review": {
+      "description": "SDLC-PREV-001 Code Review: its ergo policy is evaluated by the merge gateway.",
+      "allOf": [
+        {
+          "$ref": "https://hub.calm.finos.org/calm/namespaces/finos.agentic-sdlc/standards/ergo-control/versions/1.0.0"
+        },
+        {
+          "properties": {
+            "requirements": {
+              "prefixItems": [
+                {
+                  "properties": {
+                    "requirement-url": {
+                      "const": "https://hub.calm.finos.org/calm/domains/finos-sdlc-common-controls/controls/sdlc-prev-001-code-review/requirement/versions/1.0.0"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "requirements-repository": {
+      "description": "SDLC-PREV-004 Requirements Repository: its ergo policy is evaluated on every change.",
+      "allOf": [
+        {
+          "$ref": "https://hub.calm.finos.org/calm/namespaces/finos.agentic-sdlc/standards/ergo-control/versions/1.0.0"
+        },
+        {
+          "properties": {
+            "requirements": {
+              "prefixItems": [
+                {
+                  "properties": {
+                    "requirement-url": {
+                      "const": "https://hub.calm.finos.org/calm/domains/finos-sdlc-common-controls/controls/sdlc-prev-004-requirements/requirement/versions/1.0.0"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "service-dependency-control": {
+      "description": "SDLC-PREV-017 Service Dependency Control: every connection the code makes must be in the model.",
+      "allOf": [
+        {
+          "$ref": "https://hub.calm.finos.org/calm/namespaces/finos.agentic-sdlc/standards/ergo-control/versions/1.0.0"
+        },
+        {
+          "properties": {
+            "requirements": {
+              "prefixItems": [
+                {
+                  "properties": {
+                    "requirement-url": {
+                      "const": "https://hub.calm.finos.org/calm/domains/finos-sdlc-common-controls/controls/sdlc-prev-017-service-dependency-control/requirement/versions/1.0.0"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "deployment-gating": {
+      "description": "SDLC-PREV-012 Deployment Gating: the gates gates/check.mjs must see pass.",
+      "type": "object",
+      "properties": {
+        "requirements": {
+          "type": "array",
+          "minItems": 1,
+          "prefixItems": [
+            {
+              "type": "object",
+              "properties": {
+                "requirement-url": {
+                  "const": "https://hub.calm.finos.org/calm/domains/finos-sdlc-common-controls/controls/sdlc-prev-012-deployment-gating/requirement/versions/1.0.0"
+                },
+                "config": {
+                  "type": "object",
+                  "properties": {
+                    "evaluated-by": {
+                      "const": "pipeline"
+                    },
+                    "blocking-gates": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 1,
+                      "uniqueItems": true
+                    }
+                  },
+                  "required": [
+                    "evaluated-by",
+                    "blocking-gates"
+                  ]
+                }
+              },
+              "required": [
+                "requirement-url",
+                "config"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "requirements"
+      ]
+    },
+    "test-evidence-retention": {
+      "description": "SDLC-PREV-014 Test Evidence Retention: every evaluation is kept as evidence.",
+      "type": "object",
+      "properties": {
+        "requirements": {
+          "type": "array",
+          "minItems": 1,
+          "prefixItems": [
+            {
+              "type": "object",
+              "properties": {
+                "requirement-url": {
+                  "const": "https://hub.calm.finos.org/calm/domains/finos-sdlc-common-controls/controls/sdlc-prev-014-test-evidence/requirement/versions/1.0.0"
+                },
+                "config": {
+                  "type": "object",
+                  "properties": {
+                    "evaluated-by": {
+                      "const": "pipeline"
+                    }
+                  },
+                  "required": [
+                    "evaluated-by"
+                  ]
+                }
+              },
+              "required": [
+                "requirement-url",
+                "config"
+              ]
+            }
+          ]
+        }
+      },
+      "required": [
+        "requirements"
+      ]
+    }
+  }
+}
