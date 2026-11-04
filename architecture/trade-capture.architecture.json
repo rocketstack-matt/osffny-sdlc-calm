@@ -324,6 +324,23 @@
       }
     },
     {
+      "unique-id": "trade-api-to-client-ledger",
+      "description": "Trade API writes end-of-day trade snapshots straight to the Client Ledger (SPEC-003).",
+      "relationship-type": {
+        "connects": {
+          "source": {
+            "node": "trade-api"
+          },
+          "destination": {
+            "node": "client-ledger",
+            "interfaces": [
+              "client-ledger-file"
+            ]
+          }
+        }
+      }
+    },
+    {
       "unique-id": "position-service-to-client-ledger",
       "description": "Persist positions",
       "relationship-type": {
